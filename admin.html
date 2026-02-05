@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="VoteNow Admin Panel - Manage your polls and view detailed analytics">
+    <title>Admin Panel - VoteNow</title>
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <style>
+        /* Admin-specific styles */
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            color: var(--accent-purple);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all var(--transition-fast);
+        }
+
+        .back-link:hover {
+            gap: var(--spacing-sm);
+            color: var(--accent-pink);
+        }
+
+        .admin-section {
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            margin-bottom: var(--spacing-md);
+            color: var(--text-primary);
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: var(--spacing-xs);
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .form-input,
+        .form-textarea {
+            width: 100%;
+            padding: var(--spacing-sm);
+            background: var(--bg-secondary);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-primary);
+            font-size: 1rem;
+            transition: all var(--transition-fast);
+        }
+
+        .form-input:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .option-item {
+            display: flex;
+            gap: var(--spacing-sm);
+            align-items: center;
+        }
+
+        .option-item .form-input {
+            flex: 1;
+        }
+
+        .btn-icon {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-secondary);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .btn-icon:hover {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+            transform: scale(1.1);
+        }
+
+        .btn-add {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+        }
+
+        .btn-add:hover {
+            border-color: transparent;
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-glass);
+            border-color: var(--accent-purple);
+        }
+
+        .btn-danger {
+            background: var(--secondary-gradient);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 8px 30px rgba(245, 87, 108, 0.4);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: block;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .alert {
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-md);
+            display: none;
+            animation: fadeInScale 0.3s ease;
+        }
+
+        .alert.active {
+            display: block;
+        }
+
+        .alert-success {
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.2) 0%, rgba(0, 242, 254, 0.2) 100%);
+            border: 1px solid rgba(79, 172, 254, 0.4);
+            color: var(--accent-cyan);
+        }
+
+        .alert-danger {
+            background: linear-gradient(135deg, rgba(240, 147, 251, 0.2) 0%, rgba(245, 87, 108, 0.2) 100%);
+            border: 1px solid rgba(245, 87, 108, 0.4);
+            color: var(--accent-red);
+        }
+
+        .button-group {
+            display: flex;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+
+        .button-group .btn {
+            flex: 1;
+            min-width: 200px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="admin-header">
+                <div>
+                    <h1 class="logo">Admin Panel</h1>
+                    <p class="tagline">Manage Your Poll</p>
+                </div>
+                <button id="adminLogoutBtn" class="back-link" style="background: none; border: none; cursor: pointer;">
+                    ← Logout
+                </button>
+            </div>
+        </header>
+
+        <!-- Alerts -->
+        <div class="alert alert-success" id="successAlert">
+            Changes saved successfully!
+        </div>
+        <div class="alert alert-danger" id="errorAlert">
+            Please fill in all required fields.
+        </div>
+
+        <!-- Stats Section -->
+        <section class="glass-card admin-section">
+            <h2 class="section-title">Statistics</h2>
+            <div class="stats-grid" id="statsGrid">
+                <!-- Stats will be populated by JavaScript -->
+            </div>
+        </section>
+
+        <!-- Poll Editor Section -->
+        <section class="glass-card admin-section">
+            <h2 class="section-title">Edit Poll</h2>
+
+            <form id="pollForm">
+                <div class="form-group">
+                    <label class="form-label" for="pollTitleInput">Poll Title</label>
+                    <input type="text" id="pollTitleInput" class="form-input" placeholder="Enter poll title" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="pollDescInput">Poll Description</label>
+                    <textarea id="pollDescInput" class="form-textarea" placeholder="Enter poll description"
+                        required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Poll Options (minimum 2)</label>
+                    <div class="options-list" id="optionsList">
+                        <!-- Options will be populated by JavaScript -->
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="addOptionBtn"
+                        style="margin-top: var(--spacing-sm);">
+                        + Add Option
+                    </button>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn btn-primary">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Danger Zone -->
+        <section class="glass-card admin-section">
+            <h2 class="section-title">Danger Zone</h2>
+            <div class="button-group">
+                <button class="btn btn-secondary" id="resetVotesBtn">
+                    Reset All Votes
+                </button>
+                <button class="btn btn-danger" id="resetAllBtn">
+                    Reset Everything
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <script src="admin-script.js"></script>
+</body>
+
+</html>
